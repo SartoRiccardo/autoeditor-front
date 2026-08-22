@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply bg-neutral-950 text-neutral-100 antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+video {
+  background: black;
+}
