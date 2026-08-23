@@ -8,6 +8,8 @@ export interface VideoSummary {
   status: VideoStatus
   created_at: string
   submitted_at: string | null
+  archived_at: string | null
+  purge_at: string | null
   clip_count: number
   viewed_count: number
 }
@@ -39,6 +41,16 @@ export interface VideoDetail {
     status: VideoStatus
     created_at: string
     submitted_at: string | null
+    archived_at: string | null
   }
   clips: Clip[]
+}
+
+export interface CleanupHealth {
+  running: boolean
+  healthy: boolean
+  started_at: string | null
+  last_run_at: string | null
+  seconds_since_last_run: number | null
+  last_error: string | null
 }

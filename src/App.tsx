@@ -6,6 +6,7 @@ import VideoListPage from './pages/VideoListPage'
 import VideoReviewPage from './pages/VideoReviewPage'
 import ClipTrimPage from './pages/ClipTrimPage'
 import SettingsPage from './pages/SettingsPage'
+import HealthDot from './components/HealthDot'
 
 function TopBar() {
   return (
@@ -13,9 +14,12 @@ function TopBar() {
       <Link to="/" className="text-sm font-semibold text-neutral-100">
         Clip Review
       </Link>
-      <Link to="/settings" className="text-sm text-neutral-500">
-        Settings
-      </Link>
+      <div className="flex items-center gap-3">
+        <HealthDot />
+        <Link to="/settings" className="text-sm text-neutral-500">
+          Settings
+        </Link>
+      </div>
     </div>
   )
 }
