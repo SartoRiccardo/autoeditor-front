@@ -4,7 +4,6 @@ import type { Clip, Scene } from "../lib/types";
 interface Props {
   scenes: Scene[];
   clips: Clip[];
-  duration: number;
   selectedClipId: number | null;
   viewportStart: number;
   zoom: number;
@@ -19,34 +18,26 @@ function clipBorderColor(clip: Clip) {
 export default function SceneTimeline({
   scenes,
   clips,
-  duration,
   selectedClipId,
   viewportStart,
   zoom,
   onSelectClip,
 }: Props) {
-  const pct = (t: number) => (duration > 0 ? (t / duration) * 100 : 0);
+  const pct = (t: number) => (zoom > 0 ? ((t - viewportStart) / zoom) * 100 : 0);
 
   return (
-    <div className="relative h-8 w-full select-none">
-      <div className="absolute inset-0 overflow-hidden rounded-lg">
-        {scenes.map((scene, i) => (
-          <div
-            key={scene.id}
-            className={`absolute inset-y-0 ${sceneColor(i)}`}
-            style={{
-              left: `${pct(scene.start)}%`,
-              width: `${pct(scene.end - scene.start)}%`,
-            }}
-            title={scene.label}
-          />
-        ))}
-
+    <div className="relative h-8 w-full select-none overflow-hidden rounded-lg bg-neutral-900">
+      {scenes.map((scene, i) => (
         <div
-          className="pointer-events-none absolute inset-y-0"
-          style={{ left: `${pct(viewportStart)}%`, width: `${pct(zoom)}%` }}
+          key={scene.id}
+          className={`absolute inset-y-0 ${sceneColor(i)}`}
+          style={{
+            left: `${pct(scene.start)}%`,
+            width: `${pct(scene.end) - pct(scene.start)}%`,
+          }}
+          title={scene.label}
         />
-      </div>
+      ))}
 
       {clips.map((clip) => (
         <button
@@ -58,7 +49,7 @@ export default function SceneTimeline({
           )} ${clip.id === selectedClipId ? "outline outline-2 outline-white outline-offset-1" : ""}`}
           style={{
             left: `${pct(clip.start)}%`,
-            width: `${Math.max(pct(clip.end - clip.start), 0.6)}%`,
+            width: `${Math.max(pct(clip.end) - pct(clip.start), 0.6)}%`,
           }}
         />
       ))}

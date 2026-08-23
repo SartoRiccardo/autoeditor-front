@@ -249,7 +249,6 @@ export default function ProjectEditorPage() {
         <SceneTimeline
           scenes={scenes}
           clips={clips}
-          duration={duration}
           selectedClipId={selectedClipId}
           viewportStart={viewportStart}
           zoom={zoom}
