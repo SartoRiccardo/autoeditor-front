@@ -1,39 +1,11 @@
-import { useEffect, useState } from 'react'
-import { api } from '../lib/api'
-import type { CleanupHealth } from '../lib/types'
-
-const POLL_MS = 30_000
+import { useCleanupHealthQuery } from '../lib/queries'
 
 export default function HealthDot() {
-  const [health, setHealth] = useState<CleanupHealth | null>(null)
-  const [failed, setFailed] = useState(false)
+  const { data: health, isError } = useCleanupHealthQuery()
 
-  useEffect(() => {
-    let cancelled = false
-    const check = () => {
-      api
-        .cleanupHealth()
-        .then((h) => {
-          if (!cancelled) {
-            setHealth(h)
-            setFailed(false)
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setFailed(true)
-        })
-    }
-    check()
-    const id = setInterval(check, POLL_MS)
-    return () => {
-      cancelled = true
-      clearInterval(id)
-    }
-  }, [])
-
-  const healthy = !failed && health?.healthy
+  const healthy = !isError && health?.healthy
   const color = healthy ? 'bg-emerald-400' : 'bg-red-500'
-  const title = failed
+  const title = isError
     ? 'cleanup task: unreachable'
     : health
       ? `cleanup task: ${health.healthy ? 'healthy' : 'unhealthy'}${

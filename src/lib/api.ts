@@ -1,4 +1,4 @@
-import type { CleanupHealth, Clip, VideoDetail, VideoSummary } from './types'
+import type { CleanupHealth, Clip, ClipPatch, VideoDetail, VideoSummary } from './types'
 
 class ApiError extends Error {
   status: number
@@ -33,8 +33,8 @@ export const api = {
   archiveVideo: (id: number) => request<VideoDetail['video']>(`/api/videos/${id}`, { method: 'DELETE' }),
   restoreVideo: (id: number) => request<VideoDetail['video']>(`/api/videos/${id}/restore`, { method: 'POST' }),
 
-  patchClip: (id: number, body: { start: number; end: number; usable: boolean; viewed?: boolean }) =>
-    request<Clip>(`/api/clips/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  patchClips: (videoId: number, clips: ClipPatch[]) =>
+    request<Clip[]>(`/api/videos/${videoId}/clips`, { method: 'PATCH', body: JSON.stringify({ clips }) }),
 
   getApiKey: () => request<{ key: string; created_at: string }>('/api/settings/api-key'),
   regenerateApiKey: () => request<{ key: string; created_at: string }>('/api/settings/api-key/regenerate', { method: 'POST' }),

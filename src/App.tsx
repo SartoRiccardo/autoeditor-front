@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { api } from './lib/api'
+import { useMeQuery } from './lib/queries'
 import LoginPage from './pages/LoginPage'
 import VideoListPage from './pages/VideoListPage'
-import VideoReviewPage from './pages/VideoReviewPage'
-import ClipTrimPage from './pages/ClipTrimPage'
+import ProjectEditorPage from './pages/ProjectEditorPage'
 import SettingsPage from './pages/SettingsPage'
 import HealthDot from './components/HealthDot'
 
@@ -28,18 +26,14 @@ function TopBar() {
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState<boolean | null>(null)
   const location = useLocation()
+  const { data: me, isPending } = useMeQuery()
 
-  useEffect(() => {
-    api.me().then((r) => setAuthed(r.authenticated)).catch(() => setAuthed(false))
-  }, [])
-
-  if (authed === null) {
+  if (isPending) {
     return <div className="p-6 text-sm text-neutral-500">Loading…</div>
   }
 
-  if (!authed) {
+  if (!me?.authenticated) {
     if (location.pathname === '/login') return <LoginPage />
     return <Navigate to="/login" replace />
   }
@@ -49,8 +43,7 @@ export default function App() {
       <TopBar />
       <Routes>
         <Route path="/" element={<VideoListPage />} />
-        <Route path="/videos/:videoId" element={<VideoReviewPage />} />
-        <Route path="/videos/:videoId/clips/:clipId" element={<ClipTrimPage />} />
+        <Route path="/videos/:videoId" element={<ProjectEditorPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -14,11 +14,32 @@ export interface VideoSummary {
   viewed_count: number
 }
 
-export interface Clip {
+export interface Video {
+  id: number
+  external_id: string
+  title: string
+  video_path: string
+  duration: number
+  status: VideoStatus
+  created_at: string
+  submitted_at: string | null
+  archived_at: string | null
+}
+
+export interface Scene {
   id: number
   video_id: number
   external_id: string
-  scene_label: string
+  label: string
+  start: number
+  end: number
+}
+
+export interface Clip {
+  id: number
+  video_id: number
+  scene_id: number
+  external_id: string
   take_label: string
   agent_start: number
   agent_end: number
@@ -29,21 +50,21 @@ export interface Clip {
   usable: boolean
   resolved_by: ResolvedBy
   viewed: boolean
-  proxy_video_path: string
   resolved_at: string | null
 }
 
 export interface VideoDetail {
-  video: {
-    id: number
-    external_id: string
-    title: string
-    status: VideoStatus
-    created_at: string
-    submitted_at: string | null
-    archived_at: string | null
-  }
+  video: Video
+  scenes: Scene[]
   clips: Clip[]
+}
+
+export interface ClipPatch {
+  id: number
+  start: number
+  end: number
+  usable: boolean
+  viewed?: boolean
 }
 
 export interface CleanupHealth {

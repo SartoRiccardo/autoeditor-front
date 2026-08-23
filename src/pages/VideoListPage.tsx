@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../lib/api'
-import type { VideoSummary } from '../lib/types'
+import { useArchiveVideoMutation, useRestoreVideoMutation, useVideosQuery } from '../lib/queries'
 
 function daysLeft(purgeAt: string) {
   const ms = new Date(purgeAt).getTime() - Date.now()
@@ -9,46 +7,26 @@ function daysLeft(purgeAt: string) {
 }
 
 export default function VideoListPage() {
-  const [videos, setVideos] = useState<VideoSummary[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [busyId, setBusyId] = useState<number | null>(null)
+  const { data: videos, isPending, error } = useVideosQuery()
+  const archiveVideo = useArchiveVideoMutation()
+  const restoreVideo = useRestoreVideoMutation()
 
-  const load = () => api.listVideos().then(setVideos).catch((e) => setError(e.message))
+  const busyId = archiveVideo.isPending
+    ? archiveVideo.variables
+    : restoreVideo.isPending
+      ? restoreVideo.variables
+      : null
 
-  useEffect(() => {
-    load()
-  }, [])
-
-  if (error) return <p className="p-6 text-sm text-red-400">{error}</p>
-  if (!videos) return <p className="p-6 text-sm text-neutral-500">Loading…</p>
+  if (error) return <p className="p-6 text-sm text-red-400">{(error as Error).message}</p>
+  if (isPending) return <p className="p-6 text-sm text-neutral-500">Loading…</p>
 
   const inReview = videos.filter((v) => !v.archived_at && v.status === 'in_review')
   const submitted = videos.filter((v) => !v.archived_at && v.status === 'submitted')
   const archived = videos.filter((v) => v.archived_at)
 
-  const handleArchive = async (id: number) => {
+  const handleArchive = (id: number) => {
     if (!confirm('Delete this project? It can be restored for 7 days, then it is gone for good.')) return
-    setBusyId(id)
-    try {
-      await api.archiveVideo(id)
-      await load()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  const handleRestore = async (id: number) => {
-    setBusyId(id)
-    try {
-      await api.restoreVideo(id)
-      await load()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusyId(null)
-    }
+    archiveVideo.mutate(id)
   }
 
   return (
@@ -113,7 +91,7 @@ export default function VideoListPage() {
                   {v.purge_at ? `purges in ${daysLeft(v.purge_at)}d` : ''}
                 </span>
                 <button
-                  onClick={() => handleRestore(v.id)}
+                  onClick={() => restoreVideo.mutate(v.id)}
                   disabled={busyId === v.id}
                   className="shrink-0 text-xs text-amber-400 disabled:opacity-30"
                 >
