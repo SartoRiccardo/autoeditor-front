@@ -9,11 +9,23 @@ interface Props {
   zoom: number
   onTrim: (start: number, end: number) => void
   onPan: (viewportStart: number) => void
+  pickMode?: boolean
+  pendingStart?: number | null
+  onPick?: (time: number) => void
 }
 
 type DragTarget = 'start' | 'end' | null
 
-export default function ClipEditStrip({ selectedClip, viewportStart, zoom, onTrim, onPan }: Props) {
+export default function ClipEditStrip({
+  selectedClip,
+  viewportStart,
+  zoom,
+  onTrim,
+  onPan,
+  pickMode,
+  pendingStart,
+  onPick,
+}: Props) {
   const trackRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<DragTarget>(null)
 
@@ -73,10 +85,21 @@ export default function ClipEditStrip({ selectedClip, viewportStart, zoom, onTri
 
   return (
     <div className="select-none px-0 pt-4">
-      <div ref={trackRef} className="relative h-8 w-full touch-none rounded-lg bg-neutral-900">
+      <div
+        ref={trackRef}
+        className={`relative h-8 w-full touch-none rounded-lg bg-neutral-900 ${pickMode ? 'cursor-crosshair' : ''}`}
+        onPointerDown={pickMode ? (e) => onPick?.(timeAtClientX(e.clientX)) : undefined}
+      >
         {ticks.map((t) => (
           <div key={t} className="pointer-events-none absolute inset-y-0 w-px bg-white/10" style={{ left: `${pct(t)}%` }} />
         ))}
+
+        {pickMode && pendingStart != null && pendingStart >= viewportStart && pendingStart <= windowEnd && (
+          <div
+            className="pointer-events-none absolute inset-y-0 w-0.5 bg-amber-400"
+            style={{ left: `${pct(pendingStart)}%` }}
+          />
+        )}
 
         {selectedClip && (
           <div

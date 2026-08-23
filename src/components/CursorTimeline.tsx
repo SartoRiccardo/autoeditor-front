@@ -1,16 +1,22 @@
 import { useCallback, useMemo, useRef } from 'react'
-import { pickTickInterval } from '../lib/timeline'
+import { clamp, pickTickInterval } from '../lib/timeline'
+
+export type CursorMode = 'seek' | 'pan'
 
 interface Props {
+  mode: CursorMode
+  duration: number
   viewportStart: number
   zoom: number
   playhead: number
   onSeek: (time: number) => void
+  onPan: (viewportStart: number) => void
 }
 
-export default function CursorTimeline({ viewportStart, zoom, playhead, onSeek }: Props) {
+export default function CursorTimeline({ mode, duration, viewportStart, zoom, playhead, onSeek, onPan }: Props) {
   const trackRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+  const panStart = useRef({ clientX: 0, viewportStart: 0, width: 1 })
 
   const windowEnd = viewportStart + zoom
 
@@ -25,7 +31,7 @@ export default function CursorTimeline({ viewportStart, zoom, playhead, onSeek }
     [viewportStart, zoom],
   )
 
-  const handlePointerMove = useCallback(
+  const handleSeekMove = useCallback(
     (e: PointerEvent) => {
       if (!dragging.current) return
       onSeek(timeAtClientX(e.clientX))
@@ -33,17 +39,36 @@ export default function CursorTimeline({ viewportStart, zoom, playhead, onSeek }
     [onSeek, timeAtClientX],
   )
 
+  const handlePanMove = useCallback(
+    (e: PointerEvent) => {
+      if (!dragging.current) return
+      // swipe right -> content slides right -> earlier footage comes into view,
+      // same feel as scrolling a phone screen with your finger
+      const deltaPx = e.clientX - panStart.current.clientX
+      const deltaTime = -(deltaPx / panStart.current.width) * zoom
+      onPan(clamp(panStart.current.viewportStart + deltaTime, 0, Math.max(0, duration - zoom)))
+    },
+    [duration, onPan, zoom],
+  )
+
   const stopDragging = useCallback(() => {
     dragging.current = false
-    window.removeEventListener('pointermove', handlePointerMove)
+    window.removeEventListener('pointermove', handleSeekMove)
+    window.removeEventListener('pointermove', handlePanMove)
     window.removeEventListener('pointerup', stopDragging)
-  }, [handlePointerMove])
+  }, [handlePanMove, handleSeekMove])
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
     dragging.current = true
-    onSeek(timeAtClientX(e.clientX))
-    window.addEventListener('pointermove', handlePointerMove)
+    if (mode === 'seek') {
+      onSeek(timeAtClientX(e.clientX))
+      window.addEventListener('pointermove', handleSeekMove)
+    } else {
+      const rect = trackRef.current?.getBoundingClientRect()
+      panStart.current = { clientX: e.clientX, viewportStart, width: rect?.width || 1 }
+      window.addEventListener('pointermove', handlePanMove)
+    }
     window.addEventListener('pointerup', stopDragging)
   }
 
@@ -62,7 +87,7 @@ export default function CursorTimeline({ viewportStart, zoom, playhead, onSeek }
     <div className="select-none px-0 pt-4">
       <div
         ref={trackRef}
-        className="relative h-8 w-full touch-none rounded-lg bg-neutral-900"
+        className={`relative h-8 w-full touch-none rounded-lg bg-neutral-900 ${mode === 'pan' ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onPointerDown={onPointerDown}
       >
         {ticks.map((t) => (

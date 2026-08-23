@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { Hand, TextCursor } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { useSubmitVideoMutation } from '../lib/queries'
+import { useCreateClipMutation, useSubmitVideoMutation } from '../lib/queries'
 import SceneTimeline from '../components/SceneTimeline'
 import ZoomSlider from '../components/ZoomSlider'
 import ClipEditStrip from '../components/ClipEditStrip'
-import CursorTimeline from '../components/CursorTimeline'
-import TimelineScrollbar from '../components/TimelineScrollbar'
+import CursorTimeline, { type CursorMode } from '../components/CursorTimeline'
 import EditorControls from '../components/EditorControls'
 import { useProjectEditor } from '../hooks/useProjectEditor'
 
@@ -16,6 +16,9 @@ export default function ProjectEditorPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [cursorMode, setCursorMode] = useState<CursorMode>('seek')
+  const [newClipMode, setNewClipMode] = useState(false)
+  const [pendingClipStart, setPendingClipStart] = useState<number | null>(null)
 
   const editor = useProjectEditor(Number(videoId))
   const {
@@ -39,6 +42,7 @@ export default function ProjectEditorPage() {
     flush,
   } = editor
   const submitVideo = useSubmitVideoMutation(Number(videoId))
+  const createClip = useCreateClipMutation(Number(videoId))
 
   // timeupdate fires only a few times a second on mobile browsers, which makes
   // the cursor timeline visibly lag behind actual playback - drive it from a
@@ -130,19 +134,63 @@ export default function ProjectEditorPage() {
     }
   }
 
+  const startNewClip = () => {
+    setNewClipMode(true)
+    setPendingClipStart(null)
+  }
+
+  const cancelNewClip = () => {
+    setNewClipMode(false)
+    setPendingClipStart(null)
+  }
+
+  const handlePickPoint = async (time: number) => {
+    if (pendingClipStart == null) {
+      setPendingClipStart(time)
+      return
+    }
+
+    const start = Math.min(pendingClipStart, time)
+    const end = Math.max(pendingClipStart, time)
+    setNewClipMode(false)
+    setPendingClipStart(null)
+    if (end - start < 0.05) return
+
+    // no scene picker yet - drop it in whatever scene is currently selected, falling
+    // back to the first scene, until that UI exists
+    const sceneId = selectedClip?.scene_id ?? scenes[0]?.id
+    if (!sceneId) return
+
+    try {
+      const clip = await createClip.mutateAsync({ scene_id: sceneId, take_label: 'New clip', start, end })
+      toast.success('Clip added!')
+      selectClip(clip.id)
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-4 pb-40 pt-6">
       <div className="mb-3 flex items-center justify-between">
-        <Link to="/" className="text-sm text-neutral-400">
-          ← Projects
-        </Link>
-        <button
-          onClick={handleManualSave}
-          disabled={saveState === 'saving'}
-          className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-neutral-400 disabled:opacity-40"
-        >
-          {saveState === 'saving' ? 'Saving…' : 'Save'}
-        </button>
+        {newClipMode ? (
+          <p className="text-sm font-medium text-amber-400">
+            {pendingClipStart == null ? 'Click first point of clip' : 'Click second point of clip'}
+          </p>
+        ) : (
+          <>
+            <Link to="/" className="text-sm text-neutral-400">
+              ← Projects
+            </Link>
+            <button
+              onClick={handleManualSave}
+              disabled={saveState === 'saving'}
+              className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-neutral-400 disabled:opacity-40"
+            >
+              {saveState === 'saving' ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl bg-black">
@@ -161,13 +209,23 @@ export default function ProjectEditorPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex-1 px-1">
-          <TimelineScrollbar
-            duration={duration}
-            zoom={zoom}
-            viewportStart={viewportStart}
-            onChange={(vs) => setViewport(vs, zoom)}
-          />
+        <div className="flex items-center gap-1 py-3">
+          <button
+            onClick={() => setCursorMode('seek')}
+            aria-label="Seek mode"
+            aria-pressed={cursorMode === 'seek'}
+            className={`rounded-full p-1.5 ${cursorMode === 'seek' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
+          >
+            <TextCursor size={15} />
+          </button>
+          <button
+            onClick={() => setCursorMode('pan')}
+            aria-label="Pan mode"
+            aria-pressed={cursorMode === 'pan'}
+            className={`rounded-full p-1.5 ${cursorMode === 'pan' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
+          >
+            <Hand size={15} />
+          </button>
         </div>
         <ZoomSlider duration={duration} zoom={zoom} viewportStart={viewportStart} onChange={setViewport} />
       </div>
@@ -185,42 +243,66 @@ export default function ProjectEditorPage() {
       </div>
 
       <ClipEditStrip
-        selectedClip={selectedClip}
+        selectedClip={newClipMode ? null : selectedClip}
         viewportStart={viewportStart}
         zoom={zoom}
         onTrim={(s, e) => selectedClip && trimClip(selectedClip.id, s, e)}
         onPan={(vs) => setViewport(vs, zoom)}
+        pickMode={newClipMode}
+        pendingStart={pendingClipStart}
+        onPick={handlePickPoint}
       />
 
-      <CursorTimeline viewportStart={viewportStart} zoom={zoom} playhead={playhead} onSeek={seekTo} />
+      <CursorTimeline
+        mode={cursorMode}
+        duration={duration}
+        viewportStart={viewportStart}
+        zoom={zoom}
+        playhead={playhead}
+        onSeek={seekTo}
+        onPan={(vs) => setViewport(vs, zoom)}
+      />
 
       <div className="fixed inset-x-0 bottom-0 border-t border-neutral-800 bg-neutral-950/95 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur">
         <div className="mx-auto max-w-2xl px-4">
-          <EditorControls
-            playing={playing}
-            onTogglePlay={togglePlay}
-            onPrev={() => goToOffset(-1)}
-            onNext={() => goToOffset(1)}
-            onAccept={() => selectedClip && setReview(selectedClip.id, true)}
-            onReject={() => selectedClip && setReview(selectedClip.id, false)}
-            usable={selectedClip ? (selectedClip.viewed ? selectedClip.usable : null) : null}
-            disabled={readOnly || !selectedClip}
-          />
-
-          {submitError && <p className="mt-3 text-center text-sm text-red-400">{submitError}</p>}
-
-          {!readOnly && (
+          {newClipMode ? (
             <button
-              disabled={!allViewed || submitVideo.isPending}
-              onClick={handleSubmit}
-              className="mx-auto mt-3 block w-full rounded-full bg-neutral-100 py-3 text-sm font-medium text-neutral-900 disabled:opacity-30"
+              onClick={cancelNewClip}
+              className="mx-auto block w-full rounded-full bg-neutral-800 py-3 text-sm font-medium text-neutral-100"
             >
-              {allViewed
-                ? submitVideo.isPending
-                  ? 'Submitting…'
-                  : 'Submit project'
-                : `${clips.filter((c) => c.viewed).length}/${clips.length} reviewed`}
+              Cancel
             </button>
+          ) : (
+            <>
+              <EditorControls
+                playing={playing}
+                onTogglePlay={togglePlay}
+                onPrev={() => goToOffset(-1)}
+                onNext={() => goToOffset(1)}
+                onAccept={() => selectedClip && setReview(selectedClip.id, true)}
+                onReject={() => selectedClip && setReview(selectedClip.id, false)}
+                onAddClip={startNewClip}
+                usable={selectedClip ? (selectedClip.viewed ? selectedClip.usable : null) : null}
+                disabled={readOnly || !selectedClip}
+                addDisabled={readOnly}
+              />
+
+              {submitError && <p className="mt-3 text-center text-sm text-red-400">{submitError}</p>}
+
+              {!readOnly && (
+                <button
+                  disabled={!allViewed || submitVideo.isPending}
+                  onClick={handleSubmit}
+                  className="mx-auto mt-3 block w-full rounded-full bg-neutral-100 py-3 text-sm font-medium text-neutral-900 disabled:opacity-30"
+                >
+                  {allViewed
+                    ? submitVideo.isPending
+                      ? 'Submitting…'
+                      : 'Submit project'
+                    : `${clips.filter((c) => c.viewed).length}/${clips.length} reviewed`}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

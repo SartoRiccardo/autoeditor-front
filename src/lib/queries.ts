@@ -1,6 +1,6 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
-import type { ClipPatch } from './types'
+import type { ClipCreate, ClipPatch } from './types'
 
 // Single source of truth for server state: every useQuery/useMutation in the app
 // lives here, keyed centrally, so no component reaches for useQueryClient directly
@@ -56,6 +56,16 @@ export function usePatchClipsMutation(videoId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (clips: ClipPatch[]) => api.patchClips(videoId, clips),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
+export function useCreateClipMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (clip: ClipCreate) => api.createClip(videoId, clip),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
     },

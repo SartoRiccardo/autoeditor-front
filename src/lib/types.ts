@@ -1,5 +1,6 @@
 export type VideoStatus = 'in_review' | 'submitted'
 export type ResolvedBy = 'agent' | 'human'
+export type ClipSource = 'agent' | 'user'
 
 export interface VideoSummary {
   id: number
@@ -31,8 +32,10 @@ export interface Scene {
   video_id: number
   external_id: string
   label: string
+  description: string | null
   start: number
   end: number
+  order: number
 }
 
 export interface Clip {
@@ -41,6 +44,7 @@ export interface Clip {
   scene_id: number
   external_id: string
   take_label: string
+  source: ClipSource
   agent_start: number
   agent_end: number
   agent_usable: boolean
@@ -51,6 +55,14 @@ export interface Clip {
   resolved_by: ResolvedBy
   viewed: boolean
   resolved_at: string | null
+}
+
+export interface ClipCreate {
+  scene_id: number
+  take_label: string
+  start: number
+  end: number
+  usable?: boolean
 }
 
 export interface VideoDetail {
