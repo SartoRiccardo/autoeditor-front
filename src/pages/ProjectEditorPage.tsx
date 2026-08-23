@@ -6,8 +6,11 @@ import {
   useCreateClipMutation,
   useCreateSceneMutation,
   useDeleteClipMutation,
+  useDeleteSceneMutation,
   useMoveClipSceneMutation,
+  useReorderScenesMutation,
   useSubmitVideoMutation,
+  useUpdateSceneMutation,
 } from '../lib/queries'
 import SceneTimeline from '../components/SceneTimeline'
 import SceneMarkersTimeline from '../components/SceneMarkersTimeline'
@@ -17,6 +20,7 @@ import SceneEditStrip from '../components/SceneEditStrip'
 import CursorTimeline from '../components/CursorTimeline'
 import EditorControls from '../components/EditorControls'
 import ClipSettingsSidebar from '../components/ClipSettingsSidebar'
+import SceneSettingsSidebar from '../components/SceneSettingsSidebar'
 import { useProjectEditor } from '../hooks/useProjectEditor'
 
 type TimelineMode = 'seek' | 'pan' | 'scene'
@@ -32,6 +36,7 @@ export default function ProjectEditorPage() {
   const [pendingPoint, setPendingPoint] = useState<number | null>(null)
   const [settingsClipId, setSettingsClipId] = useState<number | null>(null)
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null)
+  const [settingsSceneId, setSettingsSceneId] = useState<number | null>(null)
 
   const editor = useProjectEditor(Number(videoId))
   const {
@@ -60,6 +65,9 @@ export default function ProjectEditorPage() {
   const createScene = useCreateSceneMutation(Number(videoId))
   const moveClipScene = useMoveClipSceneMutation(Number(videoId))
   const deleteClip = useDeleteClipMutation(Number(videoId))
+  const updateSceneSettings = useUpdateSceneMutation(Number(videoId))
+  const deleteScene = useDeleteSceneMutation(Number(videoId))
+  const reorderScenes = useReorderScenesMutation(Number(videoId))
 
   // timeupdate fires only a few times a second on mobile browsers, which makes
   // the cursor timeline visibly lag behind actual playback - drive it from a
@@ -230,6 +238,44 @@ export default function ProjectEditorPage() {
     }
   }
 
+  const settingsScene = scenes.find((s) => s.id === settingsSceneId) ?? null
+
+  const handleSaveScene = async (patch: { label: string; description: string }) => {
+    if (!settingsSceneId) return
+    try {
+      await updateSceneSettings.mutateAsync({ sceneId: settingsSceneId, patch })
+      toast.success('Scene saved!')
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const handleDeleteScene = async () => {
+    if (!settingsSceneId) return
+    const id = settingsSceneId
+    setSettingsSceneId(null)
+    try {
+      await deleteScene.mutateAsync(id)
+      toast.success('Scene deleted')
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const handleSelectClipFromScene = (clipId: number) => {
+    setSettingsSceneId(null)
+    setTimelineMode('seek')
+    handleSelect(clipId)
+  }
+
+  const handleReorderScenes = async (sceneIds: number[]) => {
+    try {
+      await reorderScenes.mutateAsync(sceneIds)
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-4 pb-40 pt-6">
       <div className="mb-3 flex items-center justify-between">
@@ -317,6 +363,7 @@ export default function ProjectEditorPage() {
             viewportStart={viewportStart}
             zoom={zoom}
             onSelectScene={handleSelectScene}
+            onLongPressScene={setSettingsSceneId}
           />
         ) : (
           <SceneTimeline
@@ -418,6 +465,19 @@ export default function ProjectEditorPage() {
         onClose={() => setSettingsClipId(null)}
         onMoveScene={handleMoveClipScene}
         onDelete={handleDeleteClip}
+      />
+
+      <SceneSettingsSidebar
+        scene={settingsScene}
+        scenes={scenes}
+        clips={clips}
+        readOnly={readOnly}
+        saving={updateSceneSettings.isPending}
+        onClose={() => setSettingsSceneId(null)}
+        onSave={handleSaveScene}
+        onDelete={handleDeleteScene}
+        onSelectClip={handleSelectClipFromScene}
+        onReorder={handleReorderScenes}
       />
     </div>
   )

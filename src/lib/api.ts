@@ -54,6 +54,15 @@ export const api = {
   updateScene: (videoId: number, sceneId: number, patch: SceneUpdate) =>
     request<Scene>(`/api/videos/${videoId}/scenes/${sceneId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
+  deleteScene: (videoId: number, sceneId: number) =>
+    request<{ ok: boolean }>(`/api/videos/${videoId}/scenes/${sceneId}`, { method: 'DELETE' }),
+
+  reorderScenes: (videoId: number, sceneIds: number[]) =>
+    request<Scene[]>(`/api/videos/${videoId}/scenes/order`, {
+      method: 'PUT',
+      body: JSON.stringify({ scene_ids: sceneIds }),
+    }),
+
   getApiKey: () => request<{ key: string; created_at: string }>('/api/settings/api-key'),
   regenerateApiKey: () => request<{ key: string; created_at: string }>('/api/settings/api-key/regenerate', { method: 'POST' }),
 

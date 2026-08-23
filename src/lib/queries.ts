@@ -114,6 +114,26 @@ export function useUpdateSceneMutation(videoId: number) {
   })
 }
 
+export function useDeleteSceneMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (sceneId: number) => api.deleteScene(videoId, sceneId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
+export function useReorderScenesMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (sceneIds: number[]) => api.reorderScenes(videoId, sceneIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
 export function useSubmitVideoMutation(videoId: number) {
   const queryClient = useQueryClient()
   return useMutation({
