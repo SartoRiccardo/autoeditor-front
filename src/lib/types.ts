@@ -58,11 +58,24 @@ export interface Clip {
 }
 
 export interface ClipCreate {
-  scene_id: number
   take_label: string
   start: number
   end: number
   usable?: boolean
+}
+
+export interface SceneCreate {
+  label: string
+  description?: string | null
+  start?: number
+  end?: number
+}
+
+export interface SceneUpdate {
+  label?: string
+  description?: string
+  start?: number
+  end?: number
 }
 
 export interface VideoDetail {

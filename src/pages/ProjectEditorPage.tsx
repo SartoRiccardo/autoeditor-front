@@ -1,14 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
-import { Hand, TextCursor } from 'lucide-react'
+import { Clapperboard, Hand, TextCursor } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { useCreateClipMutation, useSubmitVideoMutation } from '../lib/queries'
+import {
+  useCreateClipMutation,
+  useCreateSceneMutation,
+  useDeleteClipMutation,
+  useMoveClipSceneMutation,
+  useSubmitVideoMutation,
+} from '../lib/queries'
 import SceneTimeline from '../components/SceneTimeline'
+import SceneMarkersTimeline from '../components/SceneMarkersTimeline'
 import ZoomSlider from '../components/ZoomSlider'
 import ClipEditStrip from '../components/ClipEditStrip'
-import CursorTimeline, { type CursorMode } from '../components/CursorTimeline'
+import SceneEditStrip from '../components/SceneEditStrip'
+import CursorTimeline from '../components/CursorTimeline'
 import EditorControls from '../components/EditorControls'
+import ClipSettingsSidebar from '../components/ClipSettingsSidebar'
 import { useProjectEditor } from '../hooks/useProjectEditor'
+
+type TimelineMode = 'seek' | 'pan' | 'scene'
 
 export default function ProjectEditorPage() {
   const { videoId } = useParams()
@@ -16,9 +27,11 @@ export default function ProjectEditorPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [cursorMode, setCursorMode] = useState<CursorMode>('seek')
-  const [newClipMode, setNewClipMode] = useState(false)
-  const [pendingClipStart, setPendingClipStart] = useState<number | null>(null)
+  const [timelineMode, setTimelineMode] = useState<TimelineMode>('seek')
+  const [creatingKind, setCreatingKind] = useState<'clip' | 'scene' | null>(null)
+  const [pendingPoint, setPendingPoint] = useState<number | null>(null)
+  const [settingsClipId, setSettingsClipId] = useState<number | null>(null)
+  const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null)
 
   const editor = useProjectEditor(Number(videoId))
   const {
@@ -37,12 +50,16 @@ export default function ProjectEditorPage() {
     playhead,
     setPlayhead,
     trimClip,
+    trimScene,
     setReview,
     saveState,
     flush,
   } = editor
   const submitVideo = useSubmitVideoMutation(Number(videoId))
   const createClip = useCreateClipMutation(Number(videoId))
+  const createScene = useCreateSceneMutation(Number(videoId))
+  const moveClipScene = useMoveClipSceneMutation(Number(videoId))
+  const deleteClip = useDeleteClipMutation(Number(videoId))
 
   // timeupdate fires only a few times a second on mobile browsers, which makes
   // the cursor timeline visibly lag behind actual playback - drive it from a
@@ -102,6 +119,12 @@ export default function ProjectEditorPage() {
     if (clip) seekTo(clip.start)
   }
 
+  const handleSelectScene = (id: number) => {
+    setSelectedSceneId(id)
+    const scene = scenes.find((s) => s.id === id)
+    if (scene) seekTo(scene.start)
+  }
+
   const goToOffset = (offset: number) => {
     if (!selectedClipId) return
     const idx = clips.findIndex((c) => c.id === selectedClipId)
@@ -141,37 +164,67 @@ export default function ProjectEditorPage() {
     }
   }
 
-  const startNewClip = () => {
-    setNewClipMode(true)
-    setPendingClipStart(null)
+  const startCreate = () => {
+    setCreatingKind(timelineMode === 'scene' ? 'scene' : 'clip')
+    setPendingPoint(null)
   }
 
-  const cancelNewClip = () => {
-    setNewClipMode(false)
-    setPendingClipStart(null)
+  const cancelCreate = () => {
+    setCreatingKind(null)
+    setPendingPoint(null)
   }
 
   const handlePickPoint = async (time: number) => {
-    if (pendingClipStart == null) {
-      setPendingClipStart(time)
+    if (pendingPoint == null) {
+      setPendingPoint(time)
       return
     }
 
-    const start = Math.min(pendingClipStart, time)
-    const end = Math.max(pendingClipStart, time)
-    setNewClipMode(false)
-    setPendingClipStart(null)
+    const start = Math.min(pendingPoint, time)
+    const end = Math.max(pendingPoint, time)
+    const kind = creatingKind
+    setCreatingKind(null)
+    setPendingPoint(null)
     if (end - start < 0.05) return
 
-    // no scene picker yet - drop it in whatever scene is currently selected, falling
-    // back to the first scene, until that UI exists
-    const sceneId = selectedClip?.scene_id ?? scenes[0]?.id
-    if (!sceneId) return
+    if (kind === 'scene') {
+      try {
+        const scene = await createScene.mutateAsync({ label: 'New scene', start, end })
+        toast.success('Scene added!')
+        setSelectedSceneId(scene.id)
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+      return
+    }
 
     try {
-      const clip = await createClip.mutateAsync({ scene_id: sceneId, take_label: 'New clip', start, end })
+      const clip = await createClip.mutateAsync({ take_label: 'New clip', start, end })
       toast.success('Clip added!')
       selectClip(clip.id)
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const settingsClip = clips.find((c) => c.id === settingsClipId) ?? null
+
+  const handleMoveClipScene = async (sceneId: number) => {
+    if (!settingsClipId) return
+    try {
+      await moveClipScene.mutateAsync({ clipId: settingsClipId, sceneId })
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const handleDeleteClip = async () => {
+    if (!settingsClipId) return
+    const id = settingsClipId
+    setSettingsClipId(null)
+    try {
+      await deleteClip.mutateAsync(id)
+      toast.success('Clip deleted')
     } catch (e) {
       toast.error((e as Error).message)
     }
@@ -180,9 +233,9 @@ export default function ProjectEditorPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-4 pb-40 pt-6">
       <div className="mb-3 flex items-center justify-between">
-        {newClipMode ? (
+        {creatingKind ? (
           <p className="text-sm font-medium text-amber-400">
-            {pendingClipStart == null ? 'Click first point of clip' : 'Click second point of clip'}
+            {pendingPoint == null ? `Click first point of ${creatingKind}` : `Click second point of ${creatingKind}`}
           </p>
         ) : (
           <>
@@ -226,49 +279,86 @@ export default function ProjectEditorPage() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1 py-3">
           <button
-            onClick={() => setCursorMode('seek')}
+            onClick={() => setTimelineMode('seek')}
+            disabled={!!creatingKind}
             aria-label="Seek mode"
-            aria-pressed={cursorMode === 'seek'}
-            className={`rounded-full p-1.5 ${cursorMode === 'seek' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
+            aria-pressed={timelineMode === 'seek'}
+            className={`rounded-full p-1.5 disabled:opacity-40 ${timelineMode === 'seek' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
           >
             <TextCursor size={15} />
           </button>
           <button
-            onClick={() => setCursorMode('pan')}
+            onClick={() => setTimelineMode('pan')}
+            disabled={!!creatingKind}
             aria-label="Pan mode"
-            aria-pressed={cursorMode === 'pan'}
-            className={`rounded-full p-1.5 ${cursorMode === 'pan' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
+            aria-pressed={timelineMode === 'pan'}
+            className={`rounded-full p-1.5 disabled:opacity-40 ${timelineMode === 'pan' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
           >
             <Hand size={15} />
+          </button>
+          <button
+            onClick={() => setTimelineMode('scene')}
+            disabled={!!creatingKind}
+            aria-label="Scene mode"
+            aria-pressed={timelineMode === 'scene'}
+            className={`rounded-full p-1.5 disabled:opacity-40 ${timelineMode === 'scene' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'}`}
+          >
+            <Clapperboard size={15} />
           </button>
         </div>
         <ZoomSlider duration={duration} zoom={zoom} viewportStart={viewportStart} onChange={setViewport} />
       </div>
 
       <div>
-        <SceneTimeline
-          scenes={scenes}
-          clips={clips}
-          selectedClipId={selectedClipId}
-          viewportStart={viewportStart}
-          zoom={zoom}
-          onSelectClip={handleSelect}
-        />
+        {timelineMode === 'scene' ? (
+          <SceneMarkersTimeline
+            scenes={scenes}
+            selectedSceneId={selectedSceneId}
+            viewportStart={viewportStart}
+            zoom={zoom}
+            onSelectScene={handleSelectScene}
+          />
+        ) : (
+          <SceneTimeline
+            scenes={scenes}
+            clips={clips}
+            selectedClipId={selectedClipId}
+            viewportStart={viewportStart}
+            zoom={zoom}
+            onSelectClip={handleSelect}
+            onLongPressClip={setSettingsClipId}
+          />
+        )}
       </div>
 
-      <ClipEditStrip
-        selectedClip={newClipMode ? null : selectedClip}
-        viewportStart={viewportStart}
-        zoom={zoom}
-        onTrim={(s, e) => selectedClip && trimClip(selectedClip.id, s, e)}
-        onPan={(vs) => setViewport(vs, zoom)}
-        pickMode={newClipMode}
-        pendingStart={pendingClipStart}
-        onPick={handlePickPoint}
-      />
+      {timelineMode === 'scene' ? (
+        <SceneEditStrip
+          selectedScene={creatingKind ? null : scenes.find((s) => s.id === selectedSceneId) ?? null}
+          scenes={scenes}
+          duration={duration}
+          viewportStart={viewportStart}
+          zoom={zoom}
+          onTrim={(s, e) => selectedSceneId && trimScene(selectedSceneId, s, e)}
+          onPan={(vs) => setViewport(vs, zoom)}
+          pickMode={creatingKind === 'scene'}
+          pendingStart={pendingPoint}
+          onPick={handlePickPoint}
+        />
+      ) : (
+        <ClipEditStrip
+          selectedClip={creatingKind ? null : selectedClip}
+          viewportStart={viewportStart}
+          zoom={zoom}
+          onTrim={(s, e) => selectedClip && trimClip(selectedClip.id, s, e)}
+          onPan={(vs) => setViewport(vs, zoom)}
+          pickMode={creatingKind === 'clip'}
+          pendingStart={pendingPoint}
+          onPick={handlePickPoint}
+        />
+      )}
 
       <CursorTimeline
-        mode={cursorMode}
+        mode={timelineMode === 'pan' ? 'pan' : 'seek'}
         duration={duration}
         viewportStart={viewportStart}
         zoom={zoom}
@@ -279,9 +369,9 @@ export default function ProjectEditorPage() {
 
       <div className="fixed inset-x-0 bottom-0 border-t border-neutral-800 bg-neutral-950/95 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur">
         <div className="mx-auto max-w-2xl px-4">
-          {newClipMode ? (
+          {creatingKind ? (
             <button
-              onClick={cancelNewClip}
+              onClick={cancelCreate}
               className="mx-auto block w-full rounded-full bg-neutral-800 py-3 text-sm font-medium text-neutral-100"
             >
               Cancel
@@ -295,9 +385,9 @@ export default function ProjectEditorPage() {
                 onNext={() => goToOffset(1)}
                 onAccept={() => selectedClip && setReview(selectedClip.id, true)}
                 onReject={() => selectedClip && setReview(selectedClip.id, false)}
-                onAddClip={startNewClip}
+                onAddClip={startCreate}
                 usable={selectedClip ? (selectedClip.viewed ? selectedClip.usable : null) : null}
-                disabled={readOnly || !selectedClip}
+                disabled={readOnly || !selectedClip || timelineMode === 'scene'}
                 addDisabled={readOnly}
               />
 
@@ -320,6 +410,15 @@ export default function ProjectEditorPage() {
           )}
         </div>
       </div>
+
+      <ClipSettingsSidebar
+        clip={settingsClip}
+        scenes={scenes}
+        readOnly={readOnly}
+        onClose={() => setSettingsClipId(null)}
+        onMoveScene={handleMoveClipScene}
+        onDelete={handleDeleteClip}
+      />
     </div>
   )
 }

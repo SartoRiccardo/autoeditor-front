@@ -1,6 +1,6 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
-import type { ClipCreate, ClipPatch } from './types'
+import type { ClipCreate, ClipPatch, SceneCreate, SceneUpdate } from './types'
 
 // Single source of truth for server state: every useQuery/useMutation in the app
 // lives here, keyed centrally, so no component reaches for useQueryClient directly
@@ -66,6 +66,48 @@ export function useCreateClipMutation(videoId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (clip: ClipCreate) => api.createClip(videoId, clip),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
+export function useMoveClipSceneMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ clipId, sceneId }: { clipId: number; sceneId: number }) =>
+      api.moveClipScene(videoId, clipId, sceneId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
+export function useDeleteClipMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (clipId: number) => api.deleteClip(videoId, clipId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
+export function useCreateSceneMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (scene: SceneCreate) => api.createScene(videoId, scene),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
+    },
+  })
+}
+
+export function useUpdateSceneMutation(videoId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sceneId, patch }: { sceneId: number; patch: SceneUpdate }) =>
+      api.updateScene(videoId, sceneId, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
     },

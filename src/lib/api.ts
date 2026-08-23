@@ -1,4 +1,4 @@
-import type { CleanupHealth, Clip, ClipCreate, ClipPatch, VideoDetail, VideoSummary } from './types'
+import type { CleanupHealth, Clip, ClipCreate, ClipPatch, Scene, SceneCreate, SceneUpdate, VideoDetail, VideoSummary } from './types'
 
 class ApiError extends Error {
   status: number
@@ -38,6 +38,21 @@ export const api = {
 
   createClip: (videoId: number, clip: ClipCreate) =>
     request<Clip>(`/api/videos/${videoId}/clips`, { method: 'POST', body: JSON.stringify(clip) }),
+
+  moveClipScene: (videoId: number, clipId: number, sceneId: number) =>
+    request<Clip>(`/api/videos/${videoId}/clips/${clipId}/scene`, {
+      method: 'PATCH',
+      body: JSON.stringify({ scene_id: sceneId }),
+    }),
+
+  deleteClip: (videoId: number, clipId: number) =>
+    request<{ ok: boolean }>(`/api/videos/${videoId}/clips/${clipId}`, { method: 'DELETE' }),
+
+  createScene: (videoId: number, scene: SceneCreate) =>
+    request<Scene>(`/api/videos/${videoId}/scenes`, { method: 'POST', body: JSON.stringify(scene) }),
+
+  updateScene: (videoId: number, sceneId: number, patch: SceneUpdate) =>
+    request<Scene>(`/api/videos/${videoId}/scenes/${sceneId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
   getApiKey: () => request<{ key: string; created_at: string }>('/api/settings/api-key'),
   regenerateApiKey: () => request<{ key: string; created_at: string }>('/api/settings/api-key/regenerate', { method: 'POST' }),
