@@ -10,7 +10,10 @@ import HealthDot from './components/HealthDot'
 
 function TopBar() {
   return (
-    <div className="flex items-center justify-between border-b border-neutral-900 px-4 py-3">
+    <div
+      className="flex items-center justify-between border-b border-neutral-900 px-4 pb-3"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+    >
       <Link to="/" className="text-sm font-semibold text-neutral-100">
         Clip Review
       </Link>
