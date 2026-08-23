@@ -70,6 +70,13 @@ export default function ProjectEditorPage() {
 
   const readOnly = video.status === 'submitted' || !!video.archived_at
   const allViewed = clips.length > 0 && clips.every((c) => c.viewed)
+  // widened .2s early / cut .5s short so the glow's own transition finishes
+  // roughly in sync with the clip's actual boundaries, not lagging behind them
+  const insideSelectedClip =
+    playing &&
+    !!selectedClip &&
+    playhead >= selectedClip.start - 0.2 &&
+    playhead <= selectedClip.end - 0.5
 
   const seekTo = (t: number) => {
     const v = videoRef.current
@@ -193,19 +200,27 @@ export default function ProjectEditorPage() {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-black">
-        <video
-          ref={videoRef}
-          src={`/media/${video.video_path}`}
-          className="aspect-video w-full"
-          playsInline
-          muted
-          preload="metadata"
-          onClick={togglePlay}
-          onTimeUpdate={(e) => setPlayhead(e.currentTarget.currentTime)}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+      <div className="relative">
+        <div
+          aria-hidden
+          className={`absolute -inset-3 rounded-2xl bg-white blur-xl transition-opacity duration-200 ${
+            insideSelectedClip ? 'opacity-25' : 'opacity-0'
+          }`}
         />
+        <div className="relative overflow-hidden rounded-xl bg-black">
+          <video
+            ref={videoRef}
+            src={`/media/${video.video_path}`}
+            className="aspect-video w-full"
+            playsInline
+            muted
+            preload="metadata"
+            onClick={togglePlay}
+            onTimeUpdate={(e) => setPlayhead(e.currentTarget.currentTime)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
