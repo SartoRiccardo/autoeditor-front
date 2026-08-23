@@ -47,7 +47,7 @@ export default function VideoListPage() {
               disabled={busyId === v.id}
               className="shrink-0 text-xs text-neutral-600 disabled:opacity-30"
             >
-              delete
+              Delete
             </button>
           </li>
         ))}
@@ -63,13 +63,13 @@ export default function VideoListPage() {
                 className="flex items-center gap-2 rounded-xl bg-neutral-900/50 px-4 py-3 opacity-60"
               >
                 <span className="min-w-0 flex-1 truncate text-neutral-300">{v.title}</span>
-                <span className="shrink-0 text-xs text-neutral-500">✓ submitted</span>
+                <span className="shrink-0 text-xs text-neutral-500">✓ Submitted</span>
                 <button
                   onClick={() => handleArchive(v.id)}
                   disabled={busyId === v.id}
                   className="shrink-0 text-xs text-neutral-600 disabled:opacity-30"
                 >
-                  delete
+                  Delete
                 </button>
               </li>
             ))}
@@ -88,14 +88,14 @@ export default function VideoListPage() {
               >
                 <span className="min-w-0 flex-1 truncate text-neutral-500 line-through">{v.title}</span>
                 <span className="shrink-0 text-xs text-neutral-600">
-                  {v.purge_at ? `purges in ${daysLeft(v.purge_at)}d` : ''}
+                  {v.purge_at ? `Purges in ${daysLeft(v.purge_at)}d` : ''}
                 </span>
                 <button
                   onClick={() => restoreVideo.mutate(v.id)}
                   disabled={busyId === v.id}
                   className="shrink-0 text-xs text-amber-400 disabled:opacity-30"
                 >
-                  restore
+                  Restore
                 </button>
               </li>
             ))}

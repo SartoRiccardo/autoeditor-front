@@ -56,11 +56,11 @@ export default function TimelineScrollbar({ duration, zoom, viewportStart, onCha
     <div
       ref={trackRef}
       onPointerDown={onTrackPointerDown}
-      className="relative h-2 w-full touch-none rounded-full bg-neutral-900"
+      className="relative h-2.5 w-full touch-none rounded-full bg-neutral-900"
     >
       <div
         onPointerDown={onThumbPointerDown}
-        className="absolute inset-y-0 touch-none rounded-full bg-neutral-600"
+        className="absolute inset-y-0 touch-none rounded-full bg-neutral-500 transition-colors hover:bg-neutral-400"
         style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
       />
     </div>

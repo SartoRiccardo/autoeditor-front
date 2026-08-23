@@ -1,4 +1,5 @@
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { useMeQuery } from './lib/queries'
 import LoginPage from './pages/LoginPage'
 import VideoListPage from './pages/VideoListPage'
@@ -40,6 +41,7 @@ export default function App() {
 
   return (
     <>
+      <Toaster theme="dark" position="top-center" richColors />
       <TopBar />
       <Routes>
         <Route path="/" element={<VideoListPage />} />
