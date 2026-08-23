@@ -36,7 +36,7 @@ export default function ZoomSlider({ duration, zoom, viewportStart, onChange }: 
 
   return (
     <div className="ml-auto flex w-40 items-center gap-2 py-3">
-      <ZoomIn size={15} className="shrink-0 text-neutral-500" />
+      <ZoomIn size={15} className="shrink-0 text-neutral-400" />
       <Slider.Root
         className="relative flex h-5 flex-1 touch-none select-none items-center"
         min={0}

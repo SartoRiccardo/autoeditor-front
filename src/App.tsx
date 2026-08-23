@@ -18,7 +18,7 @@ function TopBar() {
       </Link>
       <div className="flex items-center gap-3">
         <HealthDot />
-        <Link to="/settings" className="text-sm text-neutral-500">
+        <Link to="/settings" className="text-sm text-neutral-400">
           Settings
         </Link>
       </div>
@@ -31,7 +31,7 @@ export default function App() {
   const { data: me, isPending } = useMeQuery()
 
   if (isPending) {
-    return <div className="p-6 text-sm text-neutral-500">Loading…</div>
+    return <div className="p-6 text-sm text-neutral-400">Loading…</div>
   }
 
   if (!me?.authenticated) {

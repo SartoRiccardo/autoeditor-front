@@ -21,7 +21,7 @@ export default function LoginPage() {
       {/* TEMPORARY: only works when the backend has DEV_AUTH_BYPASS=true (local LAN
           testing, since Google rejects plain-http non-localhost redirect URIs).
           Remove this link once real-device OAuth testing is no longer needed. */}
-      <a href="/api/auth/dev-login" className="text-xs text-neutral-600 underline">
+      <a href="/api/auth/dev-login" className="text-xs text-neutral-400 underline">
         dev bypass (LAN testing only)
       </a>
     </div>

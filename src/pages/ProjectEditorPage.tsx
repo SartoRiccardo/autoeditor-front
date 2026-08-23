@@ -62,7 +62,7 @@ export default function ProjectEditorPage() {
   }, [video?.video_path])
 
   if (error) return <p className="p-6 text-sm text-red-400">{(error as Error).message}</p>
-  if (isPending || !video) return <p className="p-6 text-sm text-neutral-500">Loading…</p>
+  if (isPending || !video) return <p className="p-6 text-sm text-neutral-400">Loading…</p>
 
   const readOnly = video.status === 'submitted' || !!video.archived_at
   const allViewed = clips.length > 0 && clips.every((c) => c.viewed)
@@ -133,7 +133,7 @@ export default function ProjectEditorPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-4 pb-40 pt-6">
       <div className="mb-3 flex items-center justify-between">
-        <Link to="/" className="text-sm text-neutral-500">
+        <Link to="/" className="text-sm text-neutral-400">
           ← Projects
         </Link>
         <button
